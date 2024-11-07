@@ -27,11 +27,20 @@ jobs:
           # 安装 @types/node 以确保 TypeScript 类型定义可用
           yarn add @types/node --dev
 
-      - name: Configure TypeScript
+      - name: Ensure TypeScript Configuration
         run: |
-          # 确保 tsconfig.json 包含合适的配置
+          # 检查 tsconfig.json 是否存在
           if [ -f "tsconfig.json" ]; then
-            jq '.compilerOptions.lib += ["dom", "es2015"]' tsconfig.json > tmp.$$.json && mv tmp.$$.json tsconfig.json
+            echo "Ensuring tsconfig.json contains correct lib options..."
+            # 检查并添加 "dom" 和 "es2015" 到 lib 配置中
+            if ! grep -q '"dom"' tsconfig.json; then
+              sed -i 's/"lib": \[/& "dom", /' tsconfig.json
+            fi
+            if ! grep -q '"es2015"' tsconfig.json; then
+              sed -i 's/"lib": \[/& "es2015", /' tsconfig.json
+            fi
+          else
+            echo "tsconfig.json not found."
           fi
 
       - name: Lint
