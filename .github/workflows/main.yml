@@ -22,7 +22,17 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: yarn install
+        run: |
+          yarn install
+          # 安装 @types/node 以确保 TypeScript 类型定义可用
+          yarn add @types/node --dev
+
+      - name: Configure TypeScript
+        run: |
+          # 确保 tsconfig.json 包含合适的配置
+          if [ -f "tsconfig.json" ]; then
+            jq '.compilerOptions.lib += ["dom", "es2015"]' tsconfig.json > tmp.$$.json && mv tmp.$$.json tsconfig.json
+          fi
 
       - name: Lint
         run: yarn run lint
