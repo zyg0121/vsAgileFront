@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('kanbanBoard.start', () => {
+      // 创建 Webview Panel
       const panel = vscode.window.createWebviewPanel(
         'kanbanBoard',
         'Kanban Board',
@@ -14,119 +16,33 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       // 设置 Webview 的 HTML 内容
-      panel.webview.html = getWebviewContent();
+      panel.webview.html = getWebviewContent(panel.webview, context.extensionUri);
     })
   );
 }
 
-function getWebviewContent() {
+function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  // 获取打包生成的 webview.js 文件的 URI
+  const scriptPathOnDisk = vscode.Uri.file(
+    path.join(extensionUri.fsPath, 'dist', 'webview.js')
+  );
+  const scriptUri = webview.asWebviewUri(scriptPathOnDisk);
+
+  // 返回 HTML 字符串，包含应用的容器和脚本引用
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kanban Board</title>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-  <script src="https://unpkg.com/element-plus"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 0; margin: 0; background-color: #f0f2f5; }
-    .kanban-board { padding: 20px; display: flex; gap: 15px; }
-    .kanban-column { flex: 1; background-color: #ffffff; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
-    .kanban-column-header { font-weight: bold; text-align: center; margin-bottom: 10px; font-size: 18px; color: #333; }
-    .kanban-tasks { max-height: 500px; overflow-y: auto; padding: 5px; }
-    .kanban-task { margin: 10px 0; padding: 15px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); transition: transform 0.2s, box-shadow 0.2s; }
-    .kanban-task:hover { transform: scale(1.02); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); }
-    .task-title-input { font-weight: bold; font-size: 16px; margin-bottom: 10px; }
-    .el-input__inner { font-size: 14px; }
-    .add-task-btn { width: 100%; margin-top: 10px; background-color: #409eff; color: white; }
-    .delete-btn { position: absolute; top: 5px; right: 5px; cursor: pointer; color: #ff4d4f; font-weight: bold; font-size: 16px; }
-  </style>
 </head>
 <body>
-  <div id="app"></div>
-
+  <div id="app">Loading...</div>
+  <script src="${scriptUri}"></script>
   <script>
-    const { createApp, ref, onMounted } = Vue;
-    const { ElCard, ElButton, ElInput } = ElementPlus;
-
-    createApp({
-      components: { ElCard, ElButton, ElInput },
-      setup() {
-        const columns = ref([
-          { title: 'Backlog', tasks: [{ id: 1, title: 'Task 1', content: '' }] },
-          { title: 'To Do', tasks: [{ id: 2, title: 'Task 2', content: '' }, { id: 3, title: 'Task 3', content: '' }] },
-          { title: 'On Going', tasks: [{ id: 4, title: 'Task 4', content: '' }] },
-          { title: 'Done', tasks: [{ id: 5, title: 'Task 5', content: '' }] }
-        ]);
-
-        const addTask = (columnIndex) => {
-          const newId = Math.max(...columns.value.flatMap(col => col.tasks.map(task => task.id))) + 1;
-          columns.value[columnIndex].tasks.push({ id: newId, title: \`New Task \${newId}\`, content: '' });
-        };
-
-        const deleteTask = (columnIndex, taskIndex) => {
-          columns.value[columnIndex].tasks.splice(taskIndex, 1);
-        };
-
-        const saveTask = (task) => {
-          console.log('Task saved', task);
-        };
-
-        // 使用 Sortable.js 初始化拖拽功能
-        onMounted(() => {
-          columns.value.forEach((column, index) => {
-            const el = document.querySelectorAll('.kanban-tasks')[index];
-            new Sortable(el, {
-              group: 'kanban', // 设置拖拽组以便跨列拖拽
-              animation: 150,
-              onEnd: (evt) => {
-                const { oldIndex, newIndex } = evt;
-                const movedTask = column.tasks.splice(oldIndex, 1)[0];
-                column.tasks.splice(newIndex, 0, movedTask);
-              }
-            });
-          });
-        });
-
-        return { columns, addTask, deleteTask, saveTask };
-      },
-      template: \`
-        <div class="kanban-board">
-          <div v-for="(column, colIndex) in columns" :key="colIndex" class="kanban-column">
-            <el-card>
-              <div slot="header" class="kanban-column-header">
-                {{ column.title }}
-              </div>
-              <div class="kanban-tasks">
-                <div v-for="(task, index) in column.tasks" :key="task.id" class="kanban-task">
-                  <!-- 可编辑的标题 -->
-                  <el-input
-                    v-model="task.title"
-                    placeholder="Edit title"
-                    class="task-title-input"
-                    clearable
-                  />
-                  <!-- 可编辑的内容 -->
-                  <el-input
-                    v-model="task.content"
-                    placeholder="Input content"
-                    type="textarea"
-                    rows="2"
-                    @input="saveTask(task)"
-                  />
-                  <!-- 删除按钮 -->
-                  <span class="delete-btn" @click="deleteTask(colIndex, index)">✖</span>
-                </div>
-              </div>
-              <el-button type="primary" @click="addTask(colIndex)" size="mini" class="add-task-btn">Add Task</el-button>
-            </el-card>
-          </div>
-        </div>
-      \`
-    }).mount('#app');
+    console.log("Checking if webview.js is loaded...");
   </script>
 </body>
+
 </html>`;
 }

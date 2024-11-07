@@ -3,6 +3,8 @@
 'use strict';
 
 const path = require('path');
+const webpack = require('webpack');
+const { VueLoaderPlugin } = require('vue-loader');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -10,7 +12,7 @@ const path = require('path');
 /** @type WebpackConfig */
 const extensionConfig = {
   target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+  mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
@@ -45,4 +47,55 @@ const extensionConfig = {
     level: "log", // enables logging required for problem matchers
   },
 };
-module.exports = [ extensionConfig ];
+
+/** @type WebpackConfig */
+const webviewConfig = {
+  target: 'web', // Webview runs in a browser context
+  mode: 'none', // Use 'production' for final builds
+
+  entry: './src/webview/main.js', // Entry point for the Webview code
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'webview.js'
+  },
+  resolve: {
+    extensions: ['.js', '.vue'],
+    alias: {
+      vue: 'vue/dist/vue.esm-bundler.js'
+    },
+    fallback: {
+      "path": false,
+      "fs": false
+    }
+  },
+  module: {
+    rules: [
+      {
+        test: /\.vue$/,
+        loader: 'vue-loader'
+      },
+      {
+        test: /\.css$/,
+        use: ['vue-style-loader', 'css-loader']
+      },
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env']
+          }
+        }
+      }
+    ]
+  },
+  plugins: [
+    new VueLoaderPlugin(),
+    new webpack.DefinePlugin({
+      'process.env': '{}', // 将 process.env 定义为空对象
+    }),
+  ],
+};
+
+module.exports = [extensionConfig, webviewConfig];
