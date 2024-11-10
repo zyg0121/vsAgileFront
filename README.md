@@ -2,6 +2,13 @@
 
 This is the README for your extension "vueagile". After writing up a brief description, we recommend including the following sections.
 
+如何运行？ 在终端中输入
+```
+yarn install  # (如果没有yarn 请执行npm install -g yarn。 没有npm? 请下载nodejs 20)
+yarn build:webview
+按下键盘F5键
+```
+
 ## Features
 
 Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
