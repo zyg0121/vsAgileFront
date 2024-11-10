@@ -28,7 +28,8 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "build:webview": "webpack --config webpack.config.js"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -51,7 +52,9 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "axios": "^1.7.7",
     "element-plus": "^2.8.7",
+    "request": "^2.88.2",
     "vue": "^3.5.12"
   }
 }
