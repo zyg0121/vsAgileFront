@@ -1,13 +1,21 @@
 <template>
     <div id="app">
-        <h1> hello world!</h1>
-      <el-button type="primary">Primary Button</el-button>
+        <KanbanBoard />
     </div>
   </template>
   
 <script>
-  export default {
-    name: "App"
-  };
+
+import KanbanBoard from "./components/KanbanBoard.vue";
+
+export default {
+  name: 'app',
+  components: {
+    KanbanBoard,
+  }
+}
 </script>
-  
+
+<style>
+
+</style>
