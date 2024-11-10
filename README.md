@@ -4,9 +4,9 @@ This is the README for your extension "vueagile". After writing up a brief descr
 
 如何运行？ 在终端中输入
 ```
-yarn install  # (如果没有yarn 请执行npm install -g yarn。 没有npm? 请下载nodejs 20)
+yarn install  # 没有yarn? 请执行npm install -g yarn。 没有npm? 请下载nodejs 20
 yarn build:webview
-按下键盘F5键
+按下键盘F5键 在新弹出窗口按下crtl+shift+p 然后输入kanban回车即可
 ```
 
 ## Features
