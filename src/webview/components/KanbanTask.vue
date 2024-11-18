@@ -24,14 +24,48 @@
     
 
     <template #header>
-      <!-- title input -->
+      <!-- title display -->
       <div class="card-header">
-        <el-input
-          v-model="task.title"
-          placeholder="Input Task Title"
-          class="task-title-input"
-          clearable
-        />
+        <!-- edit mode -->
+        <div v-if="isEditingTitle" class="title-edit-mode">
+          <el-input
+            v-model="editingTitle"
+            placeholder="Input Task Title"
+            class="task-title-input"
+            ref="titleInput"
+            @keyup.enter="saveTitleEdit"
+          />
+          <div class="title-edit-buttons">
+            <el-button
+              type="success"
+              size="small"
+              @click="saveTitleEdit"
+              text
+            >
+              <el-icon><CircleCheck /></el-icon>
+            </el-button>
+            <el-button
+              type="info"
+              size="small"
+              @click="cancelTitleEdit"
+              text
+            >
+              <el-icon><CircleClose /></el-icon>
+            </el-button>
+          </div>
+        </div>
+        <!-- display mode -->
+        <div v-else class="title-display-mode">
+          <span class="task-title">{{ task.title }}</span>
+          <el-button
+            type="primary"
+            size="small"
+            @click="startTitleEdit"
+            text
+          >
+            <el-icon><Edit /></el-icon>
+          </el-button>
+        </div>
       </div>
     </template>
     
@@ -268,12 +302,25 @@ export default {
         { id: 3, name: 'Carlie', role: 'Product' },
         { id: 4, name: 'David', role: 'Design' },
         { id: 5, name: 'Eve', role: 'Develop' }
-      ]
+      ],
+      isEditingTitle: false,
+      editingTitle: '',
+      originalTitle: '',
+      isNewTask: true,
     }
   },
   created() {
     if (!this.task.listItems) {
       this.task.listItems = []
+    }
+
+    if (this.task.title === `New Task ${this.task.id}`) {
+      this.isNewTask = true
+      this.$nextTick(() => {
+        this.startTitleEdit()
+      })
+    } else {
+      this.isNewTask = false
     }
   },
   computed: {
@@ -389,6 +436,38 @@ export default {
         }
       }
       this.$emit('save', this.task)
+    },
+    startTitleEdit() {
+      this.isEditingTitle = true
+      this.editingTitle = this.task.title
+      this.originalTitle = this.task.title
+      this.$nextTick(() => {
+        this.$refs.titleInput.focus()
+      })
+    },
+    saveTitleEdit() {
+      const newTitle = this.editingTitle.trim()
+      if (newTitle && newTitle !== this.originalTitle) {
+        this.task.title = newTitle
+        this.$emit('save', this.task)
+      } else if (!newTitle) {
+        this.editingTitle = this.originalTitle
+      }
+      this.isEditingTitle = false
+      this.isNewTask = false
+    },
+    cancelTitleEdit() {
+      if (this.isNewTask) {
+        this.$emit('delete')
+      } else {
+        this.isEditingTitle = false
+        this.editingTitle = this.originalTitle
+      }
+    }
+  },
+  mounted() {
+    if (this.isNewTask) {
+      this.startTitleEdit()
     }
   }
 };
@@ -408,10 +487,16 @@ export default {
 .card-footer { display: flex; justify-content: space-between; flex-direction: column; gap: 8px; align-items: center; }
 
 /* task title input */
+.task-title { font-size: 16px; color: var(--el-text-color-primary); flex: 1; margin-right: 10px; }
 .task-title-input { width: 100%; }
 .task-title-input :deep(.el-input__wrapper) { box-shadow: none !important; border-radius: 0; border: none; padding-left: 0; background-color: transparent;}
 .task-title-input :deep(.el-input__wrapper):hover,
 .task-title-input :deep(.el-input__wrapper.is-focus) { border: none; box-shadow: none; }
+.title-display-mode { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 5px 0; }
+.title-edit-mode { display: flex; align-items: center; width: 100%; gap: 8px; }
+.title-edit-buttons { display: flex; gap: 4px; }
+
+
 
 /* delete task button */
 .delete-button { position: absolute; top: 8px; right: 8px; z-index: 1; transition: all 0.3s; }
