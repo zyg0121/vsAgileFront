@@ -60,7 +60,14 @@ export default {
 
     const addTask = (columnIndex) => {
       const newId = Math.max(...columns.value.flatMap(col => col.tasks.map(task => task.id)), 0) + 1;
-      columns.value[columnIndex].tasks.push({ id: newId, title: `New Task ${newId}`, content: '' });
+      const newTask = {
+        id: newId,
+        title: `New Task ${newId}`,
+        content: '',
+        isNew: true,
+        listItems: []
+      };
+      columns.value[columnIndex].tasks.push(newTask);
     };
 
     const deleteTask = (columnIndex, taskIndex) => {
@@ -69,6 +76,9 @@ export default {
 
     const saveTask = (task) => {
       console.log('Task saved', task);
+      if (task.isNew) {
+        task.isNew = false;
+      }
     };
 
     const openLink = (link) => {

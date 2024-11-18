@@ -28,6 +28,7 @@
         <template #item="{ element: task }">
           <KanbanTask
             :task="task"
+            :is-new="task.isNew"
             @delete="deleteTask($event)"
             @save="saveTask"
             @openLink="openLink"
