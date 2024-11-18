@@ -39,6 +39,7 @@
 
     <el-footer class="kanban-column-footer">
       <el-button 
+        v-if="title !== 'Done'"
         type="primary" 
         @click="addTask" 
         size="small"
