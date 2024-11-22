@@ -257,6 +257,7 @@
 <script>
 import { Close, Flag, Delete, Plus, Edit, CircleCheck, CircleClose, User, Check } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import axios from 'axios';
 
 export default {
   components: {
@@ -302,13 +303,7 @@ export default {
         }
       ],
       // available users table
-      availableUsers: [
-        { id: 1, name: 'Alice', role: 'Develop' },
-        { id: 2, name: 'Bob', role: 'Test' },
-        { id: 3, name: 'Carlie', role: 'Product' },
-        { id: 4, name: 'David', role: 'Design' },
-        { id: 5, name: 'Eve', role: 'Develop' }
-      ],
+      availableUsers: [],
       isEditingTitle: false,
       editingTitle: '',
       originalTitle: '',
@@ -316,6 +311,7 @@ export default {
     }
   },
   created() {
+    this.fetchUsers();
     if (!this.task.listItems) {
       this.task.listItems = []
     }
@@ -523,7 +519,19 @@ export default {
         document.removeEventListener('mousedown', this.clickOutsideHandler)
         this.clickOutsideHandler = null
       }
-    }
+    },
+    async fetchUsers() {
+      try {
+        const response = await axios.get('/user/getAll');
+        this.availableUsers = response.data.users.map(user => ({
+          id: user.id,
+          name: user.name,
+          role: user.role
+        }));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    },
   },
   mounted() {
     if (this.task.isNew) {
