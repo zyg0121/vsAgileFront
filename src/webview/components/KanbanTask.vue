@@ -24,14 +24,48 @@
     
 
     <template #header>
-      <!-- title input -->
+      <!-- title display -->
       <div class="card-header">
-        <el-input
-          v-model="task.title"
-          placeholder="Input Task Title"
-          class="task-title-input"
-          clearable
-        />
+        <!-- edit mode -->
+        <div v-if="isEditingTitle" class="title-edit-mode">
+          <el-input
+            v-model="editingTitle"
+            placeholder="Input Task Title"
+            class="task-title-input"
+            ref="titleInput"
+            @keyup.enter="saveTitleEdit"
+          />
+          <div class="title-edit-buttons">
+            <el-button
+              type="success"
+              size="small"
+              @click="saveTitleEdit"
+              text
+            >
+              <el-icon><CircleCheck /></el-icon>
+            </el-button>
+            <el-button
+              type="info"
+              size="small"
+              @click="cancelTitleEdit"
+              text
+            >
+              <el-icon><CircleClose /></el-icon>
+            </el-button>
+          </div>
+        </div>
+        <!-- display mode -->
+        <div v-else class="title-display-mode">
+          <span class="task-title">{{ task.title }}</span>
+          <el-button
+            type="primary"
+            size="small"
+            @click="startTitleEdit"
+            text
+          >
+            <el-icon><Edit /></el-icon>
+          </el-button>
+        </div>
       </div>
     </template>
     
@@ -108,6 +142,7 @@
           size="small"
           @click="addListItem"
           class="add-item-button"
+          :disabled="hasEditingItem"
           text
         >
           <el-icon><Plus /></el-icon>
@@ -222,6 +257,7 @@
 <script>
 import { Close, Flag, Delete, Plus, Edit, CircleCheck, CircleClose, User, Check } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import axios from 'axios';
 
 export default {
   components: {
@@ -235,7 +271,12 @@ export default {
     User,
     Check
   },
-  props: ['task'],
+  props: {
+    task: {
+      type: Object,
+      required: true
+    }
+  },
   data() {
     // date shortcuts
     return {
@@ -262,16 +303,15 @@ export default {
         }
       ],
       // available users table
-      availableUsers: [
-        { id: 1, name: 'Alice', role: 'Develop' },
-        { id: 2, name: 'Bob', role: 'Test' },
-        { id: 3, name: 'Carlie', role: 'Product' },
-        { id: 4, name: 'David', role: 'Design' },
-        { id: 5, name: 'Eve', role: 'Develop' }
-      ]
+      availableUsers: [],
+      isEditingTitle: false,
+      editingTitle: '',
+      originalTitle: '',
+      clickOutsideHandler: null,
     }
   },
   created() {
+    this.fetchUsers();
     if (!this.task.listItems) {
       this.task.listItems = []
     }
@@ -313,6 +353,10 @@ export default {
       return this.availableUsers.filter(user => 
         !this.task.assignees.some(assigned => assigned.id === user.id)
       )
+    },
+    // add the detector
+    hasEditingItem() {
+      return this.task.listItems.some(item => item.isEditing)
     }
   },
   methods: {
@@ -332,17 +376,39 @@ export default {
     },
     // add list item
     addListItem() {
-      this.task.listItems.push({
+      if (this.hasEditingItem) {
+        return
+      }
+      
+      const newItem = {
         text: '',
         isEditing: true,
-        isNew: true
+        isNew: true,
+        originalText: ''
+      }
+      this.task.listItems.push(newItem)
+      
+      // outside listener
+      this.$nextTick(() => {
+        const index = this.task.listItems.length - 1
+        this.setupClickOutsideListener(() => {
+          this.cancelEdit(index)
+          this.removeClickOutsideListener()
+        })
       })
-      this.$emit('save', this.task)
     },
     // start edit
     startEdit(index) {
-      this.task.listItems[index].isEditing = true
-      this.task.listItems[index].originalText = this.task.listItems[index].text
+      const item = this.task.listItems[index]
+      item.originalText = item.text
+      item.isEditing = true
+
+      this.removeClickOutsideListener()
+      this.setupClickOutsideListener(() => {
+        if (item.isEditing) {
+          this.cancelEdit(index)
+        }
+      })
     },
     // save edit
     saveEdit(index) {
@@ -355,17 +421,19 @@ export default {
       } else {
         this.removeListItem(index)
       }
+      this.removeClickOutsideListener()
     },
     // cancel edit
     cancelEdit(index) {
       const item = this.task.listItems[index]
       if (item.isNew) {
         this.removeListItem(index)
-      } else {
-        item.text = item.originalText || item.text
+      } else if (item.isEditing) {
+        item.text = item.originalText
         item.isEditing = false
         delete item.originalText
       }
+      this.removeClickOutsideListener()
     },
     // remove item
     removeListItem(index) {
@@ -389,7 +457,89 @@ export default {
         }
       }
       this.$emit('save', this.task)
+    },
+    startTitleEdit() {
+      this.isEditingTitle = true
+      this.editingTitle = this.task.title
+      this.originalTitle = this.task.title
+      
+      // set outside listener
+      this.setupClickOutsideListener(() => {
+        if (this.task.isNew) {
+          this.saveTitleEdit()
+        } else {
+          this.cancelTitleEdit()
+        }
+        this.removeClickOutsideListener()
+      })
+
+      this.$nextTick(() => {
+        this.$refs.titleInput.focus()
+      })
+    },
+    saveTitleEdit() {
+      const newTitle = this.editingTitle.trim()
+      if (newTitle) {
+        this.task.title = newTitle
+        this.$emit('save', this.task)
+      } else if (this.task.isNew) {
+        this.task.title = `New Task ${this.task.id}`
+        this.$emit('save', this.task)
+      } else {
+        this.editingTitle = this.originalTitle
+      }
+      this.isEditingTitle = false
+      this.task.isNew = false
+      this.removeClickOutsideListener()
+    },
+    cancelTitleEdit() {
+      if (this.task.isNew) {
+        this.saveTitleEdit()
+      } else {
+        this.isEditingTitle = false
+        this.editingTitle = this.originalTitle
+      }
+      this.removeClickOutsideListener()
+    },
+    setupClickOutsideListener(callback) {
+      this.removeClickOutsideListener()
+      
+      this.clickOutsideHandler = (event) => {
+        const cardEl = this.$el
+        if (!cardEl.contains(event.target) && 
+            !event.target.closest('.el-dropdown-menu') &&
+            !event.target.closest('.el-picker-panel')) {
+          callback()
+        }
+      }
+      document.addEventListener('mousedown', this.clickOutsideHandler)
+    },
+    removeClickOutsideListener() {
+      if (this.clickOutsideHandler) {
+        document.removeEventListener('mousedown', this.clickOutsideHandler)
+        this.clickOutsideHandler = null
+      }
+    },
+    async fetchUsers() {
+      try {
+        const response = await axios.get('/user/getAll');
+        this.availableUsers = response.data.users.map(user => ({
+          id: user.id,
+          name: user.name,
+          role: user.role
+        }));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    },
+  },
+  mounted() {
+    if (this.task.isNew) {
+      this.startTitleEdit()
     }
+  },
+  beforeDestroy() {
+    this.removeClickOutsideListener()
   }
 };
 </script>
@@ -408,10 +558,14 @@ export default {
 .card-footer { display: flex; justify-content: space-between; flex-direction: column; gap: 8px; align-items: center; }
 
 /* task title input */
+.task-title { font-size: 16px; color: var(--el-text-color-primary); flex: 1; margin-right: 10px; }
 .task-title-input { width: 100%; }
 .task-title-input :deep(.el-input__wrapper) { box-shadow: none !important; border-radius: 0; border: none; padding-left: 0; background-color: transparent;}
 .task-title-input :deep(.el-input__wrapper):hover,
 .task-title-input :deep(.el-input__wrapper.is-focus) { border: none; box-shadow: none; }
+.title-display-mode { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 5px 0; }
+.title-edit-mode { display: flex; align-items: center; width: 100%; gap: 8px; }
+.title-edit-buttons { display: flex; gap: 4px; }
 
 /* delete task button */
 .delete-button { position: absolute; top: 8px; right: 8px; z-index: 1; transition: all 0.3s; }
@@ -455,9 +609,13 @@ export default {
 .assignee-trigger .el-icon { font-size: 16px; color: #606266; transition: all 0.3s ease; }
 .assignee-name { font-size: 14px; color: #606266; transition: color 0.3s ease; }
 .assignee-count { font-size: 12px; color: #909399; transition: color 0.3s ease; }
+.assignee-role { font-size: 12px; color: #909399; position: relative; padding-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* assignee dropdown menu */
 .assignee-group-title { font-size: 12px; color: #909399; padding: 0 12px; }
 .assignee-dropdown :deep(.el-dropdown-menu) { min-width: 160px; }
 .assignee-dropdown :deep(.el-dropdown-menu__item.is-disabled) { background-color: #f5f7fa; padding: 5px 0; }
+
+/* disabled */
+.add-item-button.is-disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
